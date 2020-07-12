@@ -174,10 +174,10 @@ realAuthor :: [TeXBlock] -> String
 realAuthor [_, l, _, f, _, _, _, _, _] = intercalate ", " $ map fromTeXArg [l, f]
 realAuthor _ = "ERROR"
 
-process :: [TeXBlock] -> IO ()
-process bs = do
-  print $ version $ comments bs
+process :: String -> [TeXBlock] -> IO ()
+process file bs = do
   print es
-  writeFile "output.bib" (unlines $ map fromEntry $ mapMaybe entry2Bib es)
+  print $ version $ comments bs
+  writeFile file (unlines $ map fromEntry $ mapMaybe entry2Bib es)
   where
     es = entries bs

@@ -8,5 +8,5 @@ main :: IO ()
 main = do
   a <- getArgs
   case a of
-    [str] -> parseFromFile parseTeX str >>= either print process
-    _ -> error "need the .bbl file path to parse"
+    [input, output] -> parseFromFile parseTeX input >>= either print (process output)
+    _ -> error "need the input .bbl and output .bib paths"
