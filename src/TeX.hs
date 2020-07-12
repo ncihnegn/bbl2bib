@@ -3,18 +3,18 @@
 
 module TeX (parseTeX, process) where
 
-import BibTeX (Entry (Entry, entryType, key, tags), EntryType (Publication), fromEntry, unbraces)
+import BibTeX (Entry (Entry, entryType, key, tags), EntryType (Publication), fromEntry)
 import Control.Applicative ((<|>), many)
 import Control.Monad (void)
 import Data.Char (isLetter, isSpace)
 import Data.Foldable (asum)
-import Data.List (isPrefixOf, stripPrefix, intercalate)
+import Data.List (intercalate, isPrefixOf, isSuffixOf, stripPrefix)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Text.Parsec (try)
-import Text.Parsec.String (Parser, parseFromFile)
-import Text.Parsec.Char (char, noneOf, satisfy, spaces, letter, oneOf, newline)
+import Text.Parsec.Char (char, letter, newline, noneOf, oneOf, satisfy, spaces)
 import Text.Parsec.Combinator (many1)
+import Text.Parsec.String (Parser)
 
 data TeXBlock
   = Comment String
@@ -36,14 +36,16 @@ fromTeXBlock b = case b of
 fromTeXBlockList :: [TeXBlock] -> String
 fromTeXBlockList = concatMap fromTeXBlock
 
+unbraces :: String -> String
+unbraces s
+  | "{" `isPrefixOf` s && "}" `isSuffixOf` s = init $ tail s
+  | otherwise = s
+
 fromTeXArg :: TeXBlock -> String
 fromTeXArg = unbraces . fromTeXBlock
 
---specials :: [Char]
---specials = "'(),.-\"!^$&#{}%~|/:;=[]\\` "
-
-nottext :: [Char]
-nottext = "$%\\{]}"
+notText :: [Char]
+notText = "$%\\{]}"
 
 comment :: Parser TeXBlock
 comment = do
@@ -62,12 +64,12 @@ math = do
 commandName :: Parser String
 commandName =
   try spaceOnly
-  <|> accent
-  <|> regularCommand
+    <|> accent
+    <|> regularCommand
 
 spaceOnly :: Parser String
 spaceOnly = do
-  void $ char ' '
+  void $ many1 $ satisfy isSpace
   return " "
 
 spaceArg :: Parser TeXBlock
@@ -79,11 +81,11 @@ accent :: Parser String
 accent = do
   s <- oneOf "`'^\""
   l <- letter
-  return [s,l]
+  return [s, l]
 
 regularCommand :: Parser String
 regularCommand = do
- many1 $ satisfy (\a -> isLetter a || a == '@')
+  many1 $ satisfy (\a -> isLetter a || a == '@')
 
 command :: Parser TeXBlock
 command = do
@@ -102,7 +104,7 @@ braced = do
 
 text :: Parser TeXBlock
 text = do
-  s <- many1 $ satisfy (`notElem` nottext)
+  s <- many1 $ noneOf notText
   spaces
   return $ Text s
 
@@ -156,16 +158,16 @@ entryHead b = case b of
 
 entryTag :: TeXBlock -> Maybe (String, String)
 entryTag b = case b of
-  Command "name" [f , Braced _ , _ , Braced bss] -> Just (fromTeXArg f, authors bss)
-  Command "list" [f , Braced _ , v] -> Just (fromTeXArg f, unbraces $ fromTeXBlock v)
+  Command "name" [f, Braced _, _, Braced bss] -> Just (fromTeXArg f, authors bss)
+  Command "list" [f, Braced _, v] -> Just (fromTeXArg f, unbraces $ fromTeXBlock v)
   Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
   _ -> Nothing
 
 authors :: [TeXBlock] -> String
-authors bss = "{" ++ intercalate " and " (map author $ filter (\case Comment _ -> False; _ ->True) bss) ++ "}"
+authors bss = "{" ++ intercalate " and " (map author $ filter (\case Comment _ -> False; _ -> True) bss) ++ "}"
 
 author :: TeXBlock -> String
-author (Braced bs) = realAuthor $ filter (\case Comment _ -> False; _ ->True) bs
+author (Braced bs) = realAuthor $ filter (\case Comment _ -> False; _ -> True) bs
 author _ = "ERROR"
 
 realAuthor :: [TeXBlock] -> String
@@ -179,4 +181,3 @@ process bs = do
   writeFile "output.bib" (unlines $ map fromEntry $ mapMaybe entry2Bib es)
   where
     es = entries bs
-

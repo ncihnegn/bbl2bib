@@ -1,6 +1,5 @@
-module BibTeX (Entry (..), EntryType (..), fromEntry, unbraces) where
+module BibTeX (Entry (..), EntryType (..), fromEntry) where
 
-import Data.List (isPrefixOf, isSuffixOf)
 import Data.Maybe (mapMaybe)
 
 data EntryType
@@ -16,11 +15,6 @@ data Entry = Entry
     tags :: [(String, String)]
   }
   deriving (Eq, Show)
-
-unbraces :: String -> String
-unbraces s
-  | "{" `isPrefixOf` s && "}" `isSuffixOf` s = init $ tail s
-  | otherwise = s
 
 fromEntry :: Entry -> String
 fromEntry (Entry k (Publication t) ts) = "@" ++ t ++ "{" ++ k ++ ",\n" ++ unlines (mapMaybe fromTag ts) ++ "}"
