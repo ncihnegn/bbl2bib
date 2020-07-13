@@ -8,7 +8,7 @@ import Control.Applicative ((<|>), many)
 import Control.Monad (void)
 import Data.Char (isLetter, isSpace)
 import Data.Foldable (asum)
-import Data.List (intercalate, isPrefixOf, isSuffixOf, isInfixOf)
+import Data.List (intercalate, isInfixOf, isPrefixOf, isSuffixOf)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Text.Parsec (try)
@@ -122,15 +122,11 @@ parseTeX = many block
 comments :: [TeXBlock] -> [String]
 comments =
   map (\case Comment s -> s)
-    . filter
-      ( \case
-          Comment _ -> True
-          _ -> False
-      )
+    . filter (not . isComment)
 
 biblatexVersion :: String -> Maybe (String, String)
 biblatexVersion s
-  | "biblatex" `isInfixOf` s && "version" `isInfixOf` s = Just ("biblatex", head $ drop (length ws - 2) ws)
+  | "biblatex" `isInfixOf` s && "version" `isInfixOf` s = Just ("biblatex", ws !! max 0 (length ws - 2))
   | otherwise = Nothing
   where
     ws = words s
@@ -164,11 +160,15 @@ entryTag b = case b of
   Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
   _ -> Nothing
 
+isComment :: TeXBlock -> Bool
+isComment (Comment _) = True
+isComment _ = False
+
 authors :: [TeXBlock] -> String
-authors bss = "{" ++ intercalate " and " (map author $ filter (\case Comment _ -> False; _ -> True) bss) ++ "}"
+authors bss = "{" ++ intercalate " and " (map author $ filter isComment bss) ++ "}"
 
 author :: TeXBlock -> String
-author (Braced bs) = realAuthor $ filter (\case Comment _ -> False; _ -> True) bs
+author (Braced bs) = realAuthor $ filter isComment bs
 author _ = "ERROR"
 
 realAuthor :: [TeXBlock] -> String
