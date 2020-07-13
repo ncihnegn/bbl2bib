@@ -8,7 +8,7 @@ import Control.Applicative ((<|>), many)
 import Control.Monad (void)
 import Data.Char (isLetter, isSpace)
 import Data.Foldable (asum)
-import Data.List (intercalate, isPrefixOf, isSuffixOf, stripPrefix)
+import Data.List (intercalate, isPrefixOf, isSuffixOf, isInfixOf)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Text.Parsec (try)
@@ -130,11 +130,10 @@ comments =
 
 biblatexVersion :: String -> Maybe (String, String)
 biblatexVersion s
-  | prefix `isPrefixOf` s = Just ("biblatex", takeWhile (not . isSpace) version)
+  | "biblatex" `isInfixOf` s && "version" `isInfixOf` s = Just ("biblatex", head $ drop (length ws - 2) ws)
   | otherwise = Nothing
   where
-    Just version = stripPrefix prefix s
-    prefix = " $ biblatex version "
+    ws = words s
 
 version :: [String] -> Maybe (String, String)
 version ss =
@@ -142,8 +141,10 @@ version ss =
 
 entries :: [TeXBlock] -> [[TeXBlock]]
 entries bs =
-  splitOn [Command "endentry" []] $
-    dropWhile (\case Command "entry" _ -> False; _ -> True) bs
+  splitOn [Command "endentry" []] $ untilEntry bs
+
+untilEntry :: [TeXBlock] -> [TeXBlock]
+untilEntry = dropWhile (\case Command "entry" _ -> False; _ -> True)
 
 entry2Bib :: [TeXBlock] -> Maybe Entry
 entry2Bib [] = Nothing
@@ -178,6 +179,6 @@ process :: String -> [TeXBlock] -> IO ()
 process file bs = do
   print es
   print $ version $ comments bs
-  writeFile file (unlines $ map fromEntry $ mapMaybe entry2Bib es)
+  writeFile file (unlines $ map fromEntry $ mapMaybe (entry2Bib . untilEntry) es)
   where
     es = entries bs
