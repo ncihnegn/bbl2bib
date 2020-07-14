@@ -120,8 +120,7 @@ parseTeX = many block
 
 comments :: [TeXBlock] -> [String]
 comments =
-  map (\case Comment s -> s; _ -> "")
-    . filter (not . isComment)
+  map (\case Comment s -> s; _ -> "") . filter isComment
 
 biblatexVersion :: String -> Maybe (String, String)
 biblatexVersion s
@@ -164,10 +163,10 @@ isComment (Comment _) = True
 isComment _ = False
 
 authors :: [TeXBlock] -> String
-authors bss = "{" ++ intercalate " and " (map author $ filter isComment bss) ++ "}"
+authors bss = "{" ++ intercalate " and " (map author $ filter (not . isComment) bss) ++ "}"
 
 author :: TeXBlock -> String
-author (Braced bs) = realAuthor $ filter isComment bs
+author (Braced bs) = realAuthor $ filter (not . isComment) bs
 author _ = "ERROR"
 
 realAuthor :: [TeXBlock] -> String
