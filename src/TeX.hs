@@ -44,7 +44,7 @@ unbraces s
 fromTeXArg :: TeXBlock -> String
 fromTeXArg = unbraces . fromTeXBlock
 
-notText :: [Char]
+notText :: String
 notText = "$%\\{]}"
 
 comment :: Parser TeXBlock
@@ -84,8 +84,7 @@ accent = do
   return [s, l]
 
 regularCommand :: Parser String
-regularCommand = do
-  many1 $ satisfy (\a -> isLetter a || a == '@')
+regularCommand = many1 $ satisfy (\a -> isLetter a || a == '@')
 
 command :: Parser TeXBlock
 command = do
@@ -121,7 +120,7 @@ parseTeX = many block
 
 comments :: [TeXBlock] -> [String]
 comments =
-  map (\case Comment s -> s)
+  map (\case Comment s -> s; _ -> "")
     . filter (not . isComment)
 
 biblatexVersion :: String -> Maybe (String, String)
