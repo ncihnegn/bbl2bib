@@ -28,6 +28,8 @@ fromTeXBlock :: TeXBlock -> String
 fromTeXBlock b = case b of
   Comment _ -> ""
   Braced bs -> "{" ++ fromTeXBlockList bs ++ "}"
+  Command "bibnamedelima" _ -> "~"
+  Command "bibnamedelimi" _ -> "~"
   Command "bibrangedash" _ -> "--"
   Command c bs -> "\\" ++ c ++ concatMap fromTeXBlock bs
   Text s -> s
@@ -66,25 +68,18 @@ commandName =
   try spaceOnly
     <|> accent
     <|> regularCommand
-
-spaceOnly :: Parser String
-spaceOnly = do
-  void $ many1 $ satisfy isSpace
-  return " "
-
-spaceArg :: Parser TeXBlock
-spaceArg = do
-  void $ char ' '
-  return $ Text " "
-
-accent :: Parser String
-accent = do
-  s <- oneOf "`'^\""
-  l <- letter
-  return [s, l]
-
-regularCommand :: Parser String
-regularCommand = many1 $ satisfy (\a -> isLetter a || a == '@')
+  where
+    spaceOnly :: Parser String
+    spaceOnly = do
+      void $ many1 $ satisfy isSpace
+      return " "
+    accent :: Parser String
+    accent = do
+      s <- oneOf "`'^\""
+      l <- letter
+      return [s, l]
+    regularCommand :: Parser String
+    regularCommand = many1 $ satisfy (\a -> isLetter a || a == '@')
 
 command :: Parser TeXBlock
 command = do
@@ -93,6 +88,11 @@ command = do
   args <- many $ try braced <|> spaceArg
   void $ many newline
   return $ Command name args
+  where
+    spaceArg :: Parser TeXBlock
+    spaceArg = do
+      void $ char ' '
+      return $ Text " "
 
 braced :: Parser TeXBlock
 braced = do
@@ -145,32 +145,40 @@ entry2Bib [] = Nothing
 entry2Bib (b : bs) = case entryHead b of
   Just (k, t) -> Just Entry {key = k, entryType = Publication t, tags = mapMaybe entryTag bs}
   Nothing -> Nothing
-
-entryHead :: TeXBlock -> Maybe (String, String)
-entryHead b = case b of
-  Command "entry" (k : t : _) -> Just (fromTeXArg k, fromTeXArg t)
-  _ -> Nothing
-
-entryTag :: TeXBlock -> Maybe (String, String)
-entryTag b = case b of
-  Command "name" [f, Braced _, _, Braced bss] -> Just (fromTeXArg f, authors bss)
-  Command "list" [f, Braced _, v] -> Just (fromTeXArg f, unbraces $ fromTeXBlock v)
-  Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
-  _ -> Nothing
+  where
+    entryHead :: TeXBlock -> Maybe (String, String)
+    entryHead b = case b of
+      Command "entry" (k : t : _) -> Just (fromTeXArg k, fromTeXArg t)
+      _ -> Nothing
+    entryTag :: TeXBlock -> Maybe (String, String)
+    entryTag b = case b of
+      Command "name" [f, Braced _, _, Braced bss] -> Just (fromTeXArg f, authors bss)
+      Command "list" [f, Braced _, v] -> Just (fromTeXArg f, unbraces $ fromTeXBlock v)
+      Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
+      _ -> Nothing
+      where
+        authors :: [TeXBlock] -> String
+        authors bss = "{" ++ intercalate " and " (map author $ filter (not . isComment) bss) ++ "}"
 
 isComment :: TeXBlock -> Bool
 isComment (Comment _) = True
 isComment _ = False
 
-authors :: [TeXBlock] -> String
-authors bss = "{" ++ intercalate " and " (map author $ filter (not . isComment) bss) ++ "}"
+isBraced :: TeXBlock -> Bool
+isBraced (Braced _) = True
+isBraced _ = False
 
 author :: TeXBlock -> String
-author (Braced bs) = realAuthor $ filter (not . isComment) bs
+author (Braced bs) = realAuthor fs
+  where
+    fs = filter isBraced bs
 author _ = "ERROR"
 
 realAuthor :: [TeXBlock] -> String
-realAuthor [_, l, _, f, _, _, _, _, _] = intercalate ", " $ map fromTeXArg [l, f]
+realAuthor [_, f, _, g, _, _, _, _, _] = intercalate ", " $ map fromTeXArg [f, g]
+realAuthor [Braced _, Braced bs] = convert (filter (not . isComment) bs) where
+  convert [_, f, _, _, _, g, _, _] = intercalate ", " $ map fromTeXArg [f, g]
+  convert _ = "ERROR"
 realAuthor _ = "ERROR"
 
 process :: String -> [TeXBlock] -> IO ()
