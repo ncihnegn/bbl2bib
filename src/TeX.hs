@@ -46,6 +46,9 @@ unbraces s
 fromTeXArg :: TeXBlock -> String
 fromTeXArg = unbraces . fromTeXBlock
 
+specialChars :: String
+specialChars = "&%$#_{}~^\\"
+
 notText :: String
 notText = "$%\\{]}"
 
@@ -67,6 +70,7 @@ commandName :: Parser String
 commandName =
   try spaceOnly
     <|> accent
+    <|> escape
     <|> regularCommand
   where
     spaceOnly :: Parser String
@@ -78,6 +82,9 @@ commandName =
       s <- oneOf "`'^\""
       l <- letter
       return [s, l]
+    escape = do
+      c <- oneOf specialChars
+      return [c]
     regularCommand :: Parser String
     regularCommand = many1 $ satisfy (\a -> isLetter a || a == '@')
 
