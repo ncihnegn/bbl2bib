@@ -30,7 +30,7 @@ fromTeXBlock b = case b of
   Braced bs -> "{" ++ fromTeXBlockList bs ++ "}"
   Command "bibnamedelima" _ -> "~"
   Command "bibnamedelimi" _ -> "~"
-  Command "bibrangedash" _ -> "--"
+  Command "bibrangedash" _ -> "-"
   Command c bs -> "\\" ++ c ++ concatMap fromTeXBlock bs
   Text s -> s
   Math s -> "$" ++ s ++ "$"
@@ -79,7 +79,7 @@ commandName =
       return " "
     accent :: Parser String
     accent = do
-      s <- oneOf "`'^\""
+      s <- oneOf "`'^\"~=."
       l <- letter
       return [s, l]
     escape = do
@@ -190,7 +190,7 @@ realAuthor _ = "ERROR"
 
 process :: String -> [TeXBlock] -> IO ()
 process file bs = do
-  print es
+  --print es
   print $ version $ comments bs
   writeFile file (unlines $ map fromEntry $ mapMaybe (entry2Bib . untilEntry) es)
   where
