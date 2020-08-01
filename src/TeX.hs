@@ -47,7 +47,7 @@ fromTeXArg :: TeXBlock -> String
 fromTeXArg = unbraces . fromTeXBlock
 
 specialChars :: String
-specialChars = "&%$#_{}~^\\"
+specialChars = "&%$#_{}~^\\" ++ "!,>;:"
 
 notText :: String
 notText = "$%\\{]}"
