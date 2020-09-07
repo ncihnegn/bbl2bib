@@ -80,8 +80,15 @@ commandName =
     accent :: Parser String
     accent = do
       s <- oneOf "`'^\"~=."
-      l <- letter
+      l <- try letter <|> bracedLetter
       return [s, l]
+      where
+        bracedLetter :: Parser Char
+        bracedLetter = do
+          void $ char '{'
+          ll <- letter
+          void $ char '}'
+          return ll
     escape = do
       c <- oneOf specialChars
       return [c]
@@ -160,7 +167,7 @@ entry2Bib (b : bs) = case entryHead b of
     entryTag :: TeXBlock -> Maybe (String, String)
     entryTag b = case b of
       Command "name" [f, Braced _, _, Braced bss] -> Just (fromTeXArg f, authors bss)
-      Command "list" [f, Braced _, v] -> Just (fromTeXArg f, unbraces $ fromTeXBlock v)
+      Command "list" [f, Braced _, v] -> Just (fromTeXArg f, fromTeXBlock v)
       Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
       _ -> Nothing
       where
