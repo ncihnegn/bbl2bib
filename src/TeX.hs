@@ -192,14 +192,13 @@ realAuthor :: [TeXBlock] -> String
 realAuthor [_, f, _, g, _, _, _, _, _] = intercalate ", " $ map fromTeXArg [f, g]
 realAuthor [Braced _, Braced bs] = convert (filter (not . isComment) bs)
   where
-    convert [_, f, _, _, _, g, _, _] = intercalate ", " $ map fromTeXArg [f, g]
-    convert [_, f, _, _, _, g, _, _, _] = intercalate ", " $ map fromTeXArg [f, g]
+    convert (_ : f : _ : _ : _ : g : _ : _ : xs) = intercalate ", " $ map fromTeXArg [f, g]
     convert _ = "convertERROR"
 realAuthor _ = "realAuthorERROR"
 
 process :: String -> [TeXBlock] -> IO ()
 process file bs = do
-  --print es
+  -- print es
   print $ version $ comments bs
   writeFile file (unlines $ map fromEntry $ mapMaybe (entry2Bib . untilEntry) es)
   where
