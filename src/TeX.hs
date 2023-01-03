@@ -4,7 +4,7 @@
 module TeX (parseTeX, process) where
 
 import BibTeX (Entry (Entry, entryType, key, tags), EntryType (Publication), fromEntry)
-import Control.Applicative ((<|>), many)
+import Control.Applicative (many, (<|>))
 import Control.Monad (void)
 import Data.Char (isLetter, isSpace)
 import Data.Foldable (asum)
@@ -186,14 +186,16 @@ author :: TeXBlock -> String
 author (Braced bs) = realAuthor fs
   where
     fs = filter isBraced bs
-author _ = "ERROR"
+author _ = "authorERROR"
 
 realAuthor :: [TeXBlock] -> String
 realAuthor [_, f, _, g, _, _, _, _, _] = intercalate ", " $ map fromTeXArg [f, g]
-realAuthor [Braced _, Braced bs] = convert (filter (not . isComment) bs) where
-  convert [_, f, _, _, _, g, _, _] = intercalate ", " $ map fromTeXArg [f, g]
-  convert _ = "ERROR"
-realAuthor _ = "ERROR"
+realAuthor [Braced _, Braced bs] = convert (filter (not . isComment) bs)
+  where
+    convert [_, f, _, _, _, g, _, _] = intercalate ", " $ map fromTeXArg [f, g]
+    convert [_, f, _, _, _, g, _, _, _] = intercalate ", " $ map fromTeXArg [f, g]
+    convert _ = "convertERROR"
+realAuthor _ = "realAuthorERROR"
 
 process :: String -> [TeXBlock] -> IO ()
 process file bs = do
