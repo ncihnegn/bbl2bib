@@ -19,6 +19,7 @@ import Text.Parsec.String (Parser)
 data TeXBlock
   = Comment String
   | Braced [TeXBlock]
+  | Bracketed [TeXBlock]
   | Command String [TeXBlock]
   | Text String
   | Math String
@@ -28,6 +29,7 @@ fromTeXBlock :: TeXBlock -> String
 fromTeXBlock b = case b of
   Comment _ -> ""
   Braced bs -> "{" ++ fromTeXBlockList bs ++ "}"
+  Bracketed bs -> "[" ++ fromTeXBlockList bs ++ "]"
   Command "bibnamedelima" _ -> "~"
   Command "bibnamedelimi" _ -> "~"
   Command "bibrangedash" _ -> "-"
@@ -50,7 +52,7 @@ specialChars :: String
 specialChars = "&%$#_{}~^\\" ++ "!,>;:"
 
 notText :: String
-notText = "$%\\{]}"
+notText = "$%\\{}"
 
 comment :: Parser TeXBlock
 comment = do
@@ -110,10 +112,18 @@ command = do
 
 braced :: Parser TeXBlock
 braced = do
-  void $ char '{' <|> char '['
+  void $ char '{'
   blocks <- many block
-  void $ char '}' <|> char ']'
+  void $ char '}'
   return $ Braced blocks
+
+bracketed :: Parser TeXBlock
+bracketed = do
+  void $ char '['
+  blocks <- many block
+  void $ char ']'
+  return $ Bracketed blocks
+
 
 text :: Parser TeXBlock
 text = do
@@ -169,6 +179,13 @@ entry2Bib (b : bs) = case entryHead b of
       Command "name" [f, Braced _, _, Braced bss] -> Just (fromTeXArg f, authors bss)
       Command "list" [f, Braced _, v] -> Just (fromTeXArg f, fromTeXBlock v)
       Command "field" [k, v] -> Just (fromTeXArg k, fromTeXBlock v)
+      Command "strng" [k, v] -> Nothing
+      Command "range" [k, v] -> Nothing
+      Command "verb" _ -> Nothing -- TODO
+      Command "endverb" _ -> Nothing -- TODO
+      Command "true" _ -> Nothing -- TODO
+      Command "keyw" [ws] -> Just ("keywords", fromTeXBlock ws)
+      Command c _ -> error ("Unknown command " ++ c)
       _ -> Nothing
       where
         authors :: [TeXBlock] -> String
@@ -198,6 +215,8 @@ realAuthor _ = "realAuthorERROR"
 
 process :: String -> [TeXBlock] -> IO ()
 process file bs = do
+  -- print bs
+  -- print "Entries\n"
   -- print es
   print $ version $ comments bs
   writeFile file (unlines $ map fromEntry $ mapMaybe (entry2Bib . untilEntry) es)
